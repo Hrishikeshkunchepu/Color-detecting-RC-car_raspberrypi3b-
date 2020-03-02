@@ -1,10 +1,18 @@
+#libraries imported
 import cv2
 import numpy as np
 import math
 import sys
-import datetime
-import logging
+import RPi.GPIO as GPIO
+
+#enabling video capture through USB camera
 video = cv2.VideoCapture(0)
+#GPIO pins as digital outputs
+r = 18
+l = 16
+GPIO.setmode(GPIO.BOARD)
+GPIO.setup(r, GPIO.OUT,initial=0)
+GPIO.setup(l, GPIO.OUT,initial=0)
 
 def make_points(frame, line):
     height, width, _ = frame.shape
@@ -26,7 +34,7 @@ def average_slope_intercept(frame, lines):
     """
     lane_lines = []
     if lines is None:
-        logging.info('No line_segment segments detected')
+        print("No line_segment segments detected")
         return lane_lines
 
     height, width, _ = frame.shape
@@ -66,7 +74,48 @@ def average_slope_intercept(frame, lines):
             cv2.line(frame, (x1, y1), (x2, y2), (0, 255, 0), 5)
    
     print(lane_lines)
-    return lane_lines
+    
+
+
+
+#giving gpio output based on the slope and intercepts    
+    
+    if len(lane_lines) == 0:
+        print("No lane lines detected, do nothing")
+        GPIO.output(l, GPIO.HIGH)
+        GPIO.output(r, GPIO.HIGH)
+
+    height, width, _ = frame.shape
+    if len(lane_lines) == 1:
+        print("Only detected one lane line, just follow it")
+        x1, _, x2, _ = lane_lines[0][0]
+        x_offset = x2 - x1
+    else:
+        _, _, left_x2, _ = lane_lines[0][0]
+        _, _, right_x2, _ = lane_lines[1][0]
+        camera_mid_offset_percent = 0.02 # 0.0 means car pointing to center, -0.03: car is centered to left, +0.03 means car pointing to right
+        mid = int(width / 2 * (1 + camera_mid_offset_percent))
+        x_offset = (left_x2 + right_x2) / 2 - mid
+
+    # find the steering angle, which is angle between navigation direction to end of center line
+    y_offset = int(height / 2)
+
+    angle_to_mid_radian = math.atan(x_offset / y_offset)  # angle (in radian) to center vertical line
+    angle_to_mid_deg = int(angle_to_mid_radian * 180.0 / math.pi)  # angle (in degrees) to center vertical line
+    steering_angle = angle_to_mid_deg + 90  # this is the steering angle needed by picar front wheel
+    
+    if steering_angle <= 89:
+        GPIO.output(l, GPIO.LOW)
+        GPIO.output(r, GPIO.HIGH)
+    elif steering_angle == 90:
+        GPIO.output(l, GPIO.HIGH)
+        GPIO.output(r, GPIO.HIGH)
+    else:
+        GPIO.output(l, GPIO.HIGH)
+        GPIO.output(r, GPIO.LOW)
+        
+        
+    #return steering_angle
 
 
 
@@ -85,9 +134,10 @@ while True:
     mask = cv2.inRange(hsv, low_yellow, up_yellow)
     edges = cv2.Canny(mask, 75, 150)
 
-    lines = cv2.HoughLinesP(edges, 1, np.pi/180, 35, maxLineGap=50)
+    lane_lines = cv2.HoughLinesP(edges, 1, np.pi/180, 35, maxLineGap=50)
     
-    lessline = average_slope_intercept(frame, lines)
+    lessline = average_slope_intercept(frame, lane_lines)
+    
     
     
     
@@ -102,6 +152,7 @@ while True:
     if key == 27:
         break
 
-
+GPIO.cleanup()  
+print("Exiting...")
 video.release()
 cv2.destroyAllWindows()
