@@ -5,3 +5,6 @@ using BGR to HSV conversion to differentiate color.
 
 
 Tivac LaunchPad has been employed, because the GPIO of Raspberrypi3b+ has 3.3 volts. which do not support the motor driver IC.  serial communication (UART) between TM4c123 microcontroller and Raspberrypi3b+
+
+
+Alternatevely Optocoupler can also be used instead of Microcontroller.
