@@ -27,11 +27,8 @@ def make_points(frame, line):
 
 
 def average_slope_intercept(frame, lines):
-    """
-    This function combines line segments into one or two lane lines
-    If all line slopes are < 0: then we only have detected left lane
-    If all line slopes are > 0: then we only have detected right lane
-    """
+  
+ 
     lane_lines = []
     if lines is None:
         print("No line_segment segments detected")
@@ -115,7 +112,7 @@ def average_slope_intercept(frame, lines):
         GPIO.output(r, GPIO.LOW)
         
         
-    #return steering_angle
+
 
 
 
